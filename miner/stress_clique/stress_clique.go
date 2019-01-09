@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// +build none
+// +build darwin
 
 // This file contains a miner stress test based on the Clique consensus engine.
 package main
@@ -141,7 +141,7 @@ func makeGenesis(faucets []*ecdsa.PrivateKey, sealers []*ecdsa.PrivateKey) *core
 	genesis.GasLimit = 25000000
 
 	genesis.Config.ChainID = big.NewInt(18)
-	genesis.Config.Clique.Period = 1
+	genesis.Config.Clique.Period = 9000
 	genesis.Config.EIP150Hash = common.Hash{}
 
 	genesis.Alloc = core.GenesisAlloc{}
@@ -202,7 +202,7 @@ func makeSealer(genesis *core.Genesis) (*node.Node, error) {
 			MinerGasFloor:   genesis.GasLimit * 9 / 10,
 			MinerGasCeil:    genesis.GasLimit * 11 / 10,
 			MinerGasPrice:   big.NewInt(1),
-			MinerRecommit:   time.Second,
+			MinerRecommit:   time.Millisecond,
 		})
 	}); err != nil {
 		return nil, err

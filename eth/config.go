@@ -104,7 +104,7 @@ type Config struct {
 	MinerGasFloor  uint64
 	MinerGasCeil   uint64
 	MinerGasPrice  *big.Int
-	MinerRecommit  time.Duration
+	MinerRecommit  time.Duration //todo 这个时间要修改,
 	MinerNoverify  bool
 
 	// Ethash options

@@ -92,7 +92,7 @@ var (
 		ByzantiumBlock:      big.NewInt(1035301),
 		ConstantinopleBlock: nil,
 		Clique: &CliqueConfig{
-			Period: 15,
+			Period: 15, //bai 缺省的Period单位是秒,需要改为毫秒
 			Epoch:  30000,
 		},
 	}
