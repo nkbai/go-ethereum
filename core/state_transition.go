@@ -74,7 +74,7 @@ type Message interface {
 	CheckNonce() bool
 	Data() []byte
 }
-
+// 计算最开始的Gas  g0,这里计算的是最基本的gas,只是按照字节数计算gas,不考虑指令执行成本
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
 func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
@@ -163,7 +163,7 @@ func (st *StateTransition) buyGas() error {
 	st.state.SubBalance(st.msg.From(), mgval)
 	return nil
 }
-
+//检查nonce以及Tx中给出的gas账户是否能够支付
 func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
 	if st.msg.CheckNonce() {
@@ -205,7 +205,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// error.
 		vmerr error
 	)
+	//直接转到EVM执行相关指令即可,有错误,会记录执行结果,
+	//如何区分普通的转账交易和合约调用呢?EVM内部执行的时候区分?
+	//因为转账给一个合约账户的时候会自动执行相关的fallback函数,因此必须走到EVM,无论是普通转账还是合约转账
 	if contractCreation {
+		//Create会自己更新Nonce,所以不需要设置,
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
@@ -226,7 +230,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	return ret, st.gasUsed(), vmerr != nil, err
 }
-
+/*
+如果Tx提供了多余的gas,这时候会退回给用户. 为什么gas估算不准确,会有剩余呢?
+我想到的一种情况:
+estimateGas会根据指令计算相关gas,大多数情况是准确的.但是针对sstore指令,会因为写入内容不同
+实际消费的gas不同,比如sstore指令写入0实际上会将奖励15000gas,也就是说不仅没有gas扣除,还有gas盈余.
+但是估算gas的时候并不会区分太详细.
+*/
 func (st *StateTransition) refundGas() {
 	// Apply refund counter, capped to half of the used gas.
 	refund := st.gasUsed() / 2

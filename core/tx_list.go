@@ -167,7 +167,12 @@ func (m *txSortedMap) Remove(nonce uint64) bool {
 
 	return true
 }
-
+/*
+当前有效nonce是start,
+从队列中找出所有有效的tx,
+如果所有的nonce都大于start,那么自然什么都没有
+如果第一个小于等于start,那肯定有一些Tx当前是可以直接执行的.
+*/
 // Ready retrieves a sequentially increasing list of transactions starting at the
 // provided nonce that is ready for processing. The returned transactions will be
 // removed from the list.
@@ -196,7 +201,7 @@ func (m *txSortedMap) Ready(start uint64) types.Transactions {
 func (m *txSortedMap) Len() int {
 	return len(m.items)
 }
-
+//创建按照nonce排序的Txlist
 // Flatten creates a nonce-sorted slice of transactions based on the loosely
 // sorted internal representation. The result of the sorting is cached in case
 // it's requested again before any modifications are made to the contents.
@@ -214,6 +219,8 @@ func (m *txSortedMap) Flatten() types.Transactions {
 	copy(txs, m.cache)
 	return txs
 }
+//txList 是属于同一个账号的交易列表， 按照nonce排序。可以用来存储连续的可执行的交易。
+// 对于非连续的交易,有一些小的不同的行为。
 
 // txList is a "list" of transactions belonging to an account, sorted by account
 // nonce. The same type can be used both for storing contiguous transactions for
@@ -223,7 +230,9 @@ type txList struct {
 	strict bool         // Whether nonces are strictly continuous or not
 	txs    *txSortedMap // Heap indexed sorted hash map of the transactions
 
+	// 所有交易里面，GasPrice * GasLimit最高的值
 	costcap *big.Int // Price of the highest costing transaction (reset only if exceeds balance)
+	//所有交易里面， GasPrice最高的值
 	gascap  uint64   // Gas limit of the highest spending transaction (reset only if exceeds block limit)
 }
 
@@ -252,6 +261,7 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
 	// If there's an older better transaction, abort
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
+		// 如果存在老的交易。 而且新的交易的价格比老的高出一定的数量。那么替换。
 		threshold := new(big.Int).Div(new(big.Int).Mul(old.GasPrice(), big.NewInt(100+int64(priceBump))), big.NewInt(100))
 		// Have to ensure that the new gas price is higher than the old gas
 		// price as well as checking the percentage threshold to ensure that
@@ -270,7 +280,7 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
 	}
 	return true, old
 }
-
+//Forward 删除nonce小于某个值的所有交易。
 // Forward removes all transactions from the list with a nonce lower than the
 // provided threshold. Every removed transaction is returned for any post-removal
 // maintenance.

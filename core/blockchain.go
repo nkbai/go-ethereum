@@ -1281,6 +1281,20 @@ func countTransactions(chain []*types.Block) (c int) {
 	return c
 }
 
+/*
+
+oldBlock: 当前难度最大的链中高度最高的那块,这个难度是从
+newblock:新进来的块,他的难度币oldBlock的总体难度还高
+链reorg本身并不复杂,移除原来的canonical chain的相关记录,
+追加newBlock这条链的记录
+commonBlock->17->18->19->newblock
+        |-->17a->18a->19a->20a->oldBlock
+从17a到oldBlock的所有相关Tx都移除
+最后通知相关订阅者
+RemovedLogsEvent
+ChainSideEvent
+*/
+
 // reorgs takes two blocks, an old chain and a new chain and will reconstruct the blocks and inserts them
 // to be part of the new canonical chain and accumulates potential missing transactions and post an
 // event about them

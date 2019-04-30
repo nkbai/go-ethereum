@@ -34,7 +34,25 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 )
+/*
+txpool主要用来存放当前提交的等待写入区块的交易，有远端和本地的。
 
+txpool里面的交易分为两种，
+1. 提交但是还不能执行的，放在queue里面等待能够执行(比如说nonce太高)。
+2. 等待执行的，放在pending里面等待执行。
+
+从txpool的测试案例来看，txpool主要功能有下面几点。
+
+1. 交易验证的功能，包括余额不足，Gas不足，Nonce太低, value值是合法的，不能为负数。
+2. 能够缓存Nonce比当前本地账号状态高的交易。 存放在queue字段。 如果是能够执行的交易存放在pending字段
+3. 相同用户的相同Nonce的交易只会保留一个GasPrice最大的那个。 其他的插入不成功。
+4. 如果账号没有钱了，那么queue和pending中对应账号的交易会被删除。
+5. 如果账号的余额小于一些交易的额度，那么对应的交易会被删除，同时有效的交易会从pending移动到queue里面。防止被广播。
+6. txPool支持一些限制PriceLimit(remove的最低GasPrice限制)，PriceBump(替换相同Nonce的交易的价格的百分比) AccountSlots(每个账户的pending的槽位的最小值) GlobalSlots(全局pending队列的最大值)AccountQueue(每个账户的queueing的槽位的最小值) GlobalQueue(全局queueing的最大值) Lifetime(在queue队列的最长等待时间)
+7. 有限的资源情况下按照GasPrice的优先级进行替换。
+8. 本地的交易会使用journal的功能存放在磁盘上，重启之后会重新导入。 远程的交易不会。
+
+*/
 const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
 	chainHeadChanSize = 10
@@ -186,24 +204,25 @@ type TxPool struct {
 	config       TxPoolConfig
 	chainconfig  *params.ChainConfig
 	chain        blockChain
-	gasPrice     *big.Int
-	txFeed       event.Feed
+	gasPrice     *big.Int //最低的GasPrice限制
+	txFeed       event.Feed //通过txFeed来订阅TxPool的消息
 	scope        event.SubscriptionScope
-	chainHeadCh  chan ChainHeadEvent
-	chainHeadSub event.Subscription
-	signer       types.Signer
+	chainHeadCh  chan ChainHeadEvent // 订阅了区块头的消息，当有了新的区块头生成的时候会在这里收到通知
+	chainHeadSub event.Subscription // 区块头消息的订阅器。
+	signer       types.Signer  // 封装了事务签名处理。
 	mu           sync.RWMutex
 
 	currentState  *state.StateDB      // Current state in the blockchain head
 	pendingState  *state.ManagedState // Pending state tracking virtual nonces
-	currentMaxGas uint64              // Current gas limit for transaction caps
+	currentMaxGas uint64              // Current gas limit for transaction caps 目前交易上限的GasLimit
+	//本地交易免除驱逐规则,本地交易就是我账户在我的keystore中的交易,保证自己本地有一份
 
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
-	journal *txJournal  // Journal of local transaction to back up to disk
+	journal *txJournal  // Journal of local transaction to back up to disk //本地交易会写入磁盘
 
 	pending map[common.Address]*txList   // All currently processable transactions
 	queue   map[common.Address]*txList   // Queued but non-processable transactions
-	beats   map[common.Address]time.Time // Last heartbeat from each known account
+	beats   map[common.Address]time.Time // Last heartbeat from each known account 有新Tx进入该账户的时间
 	all     *txLookup                    // All transactions to allow lookups
 	priced  *txPricedList                // All transactions sorted by price
 
@@ -350,7 +369,14 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 
 	pool.reset(oldHead, newHead)
 }
+/*
+reset方法检索区块链的当前状态并且确保事务池的内容关于当前的区块链状态是有效的。主要功能包括：
 
+1. 因为更换了区块头，所以原有的区块中有一些交易因为区块头的更换而作废，这部分交易需要重新加入到txPool里面等待插入新的区块
+2. 生成新的currentState和pendingState
+3. 因为状态的改变。将pending中的部分交易移到queue里面
+4. 因为状态的改变，将queue里面的交易移入到pending里面。
+*/
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
@@ -764,7 +790,11 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
 	pool.beats[addr] = time.Now()
 	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
-
+/*
+什么版本开始加了进入缓冲池的通知呢?
+	//通知tx进入缓冲池了
+	go pool.txFeed.Send(TxPreEvent{tx})
+ */
 	return true
 }
 
@@ -795,7 +825,8 @@ func (pool *TxPool) AddLocals(txs []*types.Transaction) []error {
 func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 	return pool.addTxs(txs, false)
 }
-
+//local不做校验gas校验,还有就是放入Pool.locals 存入本地transactions.rlp
+// 其他和remote的Tx没区别
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 	pool.mu.Lock()
@@ -915,6 +946,8 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 		}
 	}
 }
+// 首先把所有大于AccountSlots最小值的账户记录下来， 会从这些账户里面剔除一些交易。
+// 注意spammers是一个优先级队列，也就是说是按照交易的多少从大到小排序的。
 
 // promoteExecutables moves transactions that have become processable from the
 // future queue to the set of pending transactions. During this process, all
@@ -990,6 +1023,8 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		spammers := prque.New(nil)
 		for addr, list := range pool.pending {
 			// Only evict transactions from high rollers
+			// 首先把所有大于AccountSlots最小值的账户记录下来， 会从这些账户里面剔除一些交易。
+			// 注意spammers是一个优先级队列，也就是说是按照交易的多少从大到小排序的。
 			if !pool.locals.contains(addr) && uint64(list.Len()) > pool.config.AccountSlots {
 				spammers.Push(addr, int64(list.Len()))
 			}
@@ -1091,6 +1126,8 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 	}
 }
+//demoteUnexecutables 从pending删除无效的或者是已经处理过的交易，
+// 其他的不可执行的交易会被移动到future queue中。
 
 // demoteUnexecutables removes invalid and processed transactions from the pools
 // executable/pending queue and any subsequent transactions that become unexecutable

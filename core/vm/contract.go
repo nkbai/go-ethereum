@@ -45,8 +45,8 @@ type Contract struct {
 	// CallerAddress is the result of the caller which initialised this
 	// contract. However when the "call method" is delegated this value
 	// needs to be initialised to that of the caller's caller.
-	CallerAddress common.Address
-	caller        ContractRef
+	CallerAddress common.Address //msg.sender of this contract call
+	caller        ContractRef //the same as callerAddress
 	self          ContractRef
 
 	jumpdests map[common.Hash]bitvec // Aggregated result of JUMPDEST analysis.
@@ -60,7 +60,13 @@ type Contract struct {
 	Gas   uint64
 	value *big.Int
 }
-
+/*
+caller: 本次合约中的msg.sender
+object:本合约地址
+value:本次Tx的value
+gas:本次tx的gas
+每次合约调用我们都可以指定其gas以及value.
+*/
 // NewContract returns a new contract environment for the execution of EVM.
 func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}

@@ -408,13 +408,13 @@ func opAddress(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 	stack.push(contract.Address().Big())
 	return nil, nil
 }
-
+//查询某个账户的balance
 func opBalance(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
 	slot.Set(interpreter.evm.StateDB.GetBalance(common.BigToAddress(slot)))
 	return nil, nil
 }
-
+//合约中的tx.origin
 func opOrigin(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(interpreter.evm.Origin.Big())
 	return nil, nil
@@ -451,12 +451,13 @@ func opCallDataCopy(pc *uint64, interpreter *EVMInterpreter, contract *Contract,
 	interpreter.intPool.put(memOffset, dataOffset, length)
 	return nil, nil
 }
-
+//这个是上次合约调用的返回数据,拜占庭分叉才加入,那以前如何知道一个合约调用的返回值呢?
+//比如require(token.transfer(0xaa));
 func opReturnDataSize(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(interpreter.intPool.get().SetUint64(uint64(len(interpreter.returnData))))
 	return nil, nil
 }
-
+//在合约中可以访问上次返回的数据
 func opReturnDataCopy(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	var (
 		memOffset  = stack.pop()
@@ -474,21 +475,21 @@ func opReturnDataCopy(pc *uint64, interpreter *EVMInterpreter, contract *Contrac
 
 	return nil, nil
 }
-
+//EXTCODESIZE 获取指定账户上代码的长度
 func opExtCodeSize(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
 	slot.SetUint64(uint64(interpreter.evm.StateDB.GetCodeSize(common.BigToAddress(slot))))
 
 	return nil, nil
 }
-
+//当前这份合约的指令的大小
 func opCodeSize(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	l := interpreter.intPool.get().SetInt64(int64(len(contract.Code)))
 	stack.push(l)
 
 	return nil, nil
 }
-
+//复制当前合约的指令
 func opCodeCopy(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	var (
 		memOffset  = stack.pop()
@@ -501,7 +502,7 @@ func opCodeCopy(pc *uint64, interpreter *EVMInterpreter, contract *Contract, mem
 	interpreter.intPool.put(memOffset, codeOffset, length)
 	return nil, nil
 }
-
+//复制指定合约的指令
 func opExtCodeCopy(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	var (
 		addr       = common.BigToAddress(stack.pop())
@@ -570,27 +571,27 @@ func opBlockhash(pc *uint64, interpreter *EVMInterpreter, contract *Contract, me
 	interpreter.intPool.put(num, n)
 	return nil, nil
 }
-
+//Get the block’s beneficiary address. 矿工地址
 func opCoinbase(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(interpreter.evm.Coinbase.Big())
 	return nil, nil
 }
-
+//当前块时间
 func opTimestamp(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(math.U256(interpreter.intPool.get().Set(interpreter.evm.Time)))
 	return nil, nil
 }
-
+//当前块号
 func opNumber(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(math.U256(interpreter.intPool.get().Set(interpreter.evm.BlockNumber)))
 	return nil, nil
 }
-
+//当前出块难度
 func opDifficulty(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(math.U256(interpreter.intPool.get().Set(interpreter.evm.Difficulty)))
 	return nil, nil
 }
-
+//Get the block’s gas limit. 当前块的gaslimit,不是该次合约调用的gas limit
 func opGasLimit(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(math.U256(interpreter.intPool.get().SetUint64(interpreter.evm.GasLimit)))
 	return nil, nil

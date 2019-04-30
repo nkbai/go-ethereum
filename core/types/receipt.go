@@ -45,7 +45,7 @@ const (
 // Receipt represents the results of a transaction.
 type Receipt struct {
 	// Consensus fields
-	PostState         []byte `json:"root"`
+	PostState         []byte `json:"root"` //拜占庭分叉以后就会被设置为空,然后使用的是status
 	Status            uint64 `json:"status"`
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed" gencodec:"required"`
 	Bloom             Bloom  `json:"logsBloom"         gencodec:"required"`

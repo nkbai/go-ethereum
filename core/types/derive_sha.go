@@ -28,7 +28,7 @@ type DerivableList interface {
 	Len() int
 	GetRlp(i int) []byte
 }
-
+//这个是计算当前Block中的Tx和Receipts Trie
 func DeriveSha(list DerivableList) common.Hash {
 	keybuf := new(bytes.Buffer)
 	trie := new(trie.Trie)

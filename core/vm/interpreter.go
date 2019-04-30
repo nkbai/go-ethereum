@@ -117,7 +117,6 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 		gasTable: evm.ChainConfig().GasTable(evm.BlockNumber),
 	}
 }
-
 func (in *EVMInterpreter) enforceRestrictions(op OpCode, operation operation, stack *Stack) error {
 	if in.evm.chainRules.IsByzantium {
 		if in.readOnly {
@@ -133,7 +132,12 @@ func (in *EVMInterpreter) enforceRestrictions(op OpCode, operation operation, st
 	}
 	return nil
 }
-
+//这里是虚拟机执行的核心,
+//取指令
+//validateStack
+//enforceRestrictions
+//memorySize
+//execute  执行指令
 // Run loops and evaluates the contract's code with the given input data and returns
 // the return byte-slice and an error if one occurred.
 //
@@ -163,7 +167,8 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// Reset the previous call's return data. It's unimportant to preserve the old buffer
 	// as every returning call will return new data anyway.
 	in.returnData = nil
-
+	//从这里区分普通转账Tx和合约调用Tx?
+	//因为转账给一个合约地址的时候会自动执行fallback函数,所以就算是input为空,也会执行合约.
 	// Don't bother with the execution if there's no code.
 	if len(contract.Code) == 0 {
 		return nil, nil

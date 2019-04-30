@@ -39,6 +39,8 @@ type devNull struct{}
 
 func (*devNull) Write(p []byte) (n int, err error) { return len(p), nil }
 func (*devNull) Close() error                      { return nil }
+//处理transactions.rlp文件,就是tx pool 在本地缓存
+//8. 本地的交易会使用journal的功能存放在磁盘上，重启之后会重新导入。 远程的交易不会。
 
 // txJournal is a rotating log of transactions with the aim of storing locally
 // created transactions to allow non-executed ones to survive node restarts.

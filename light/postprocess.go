@@ -141,7 +141,7 @@ func StoreChtRoot(db ethdb.Database, sectionIdx uint64, sectionHead, root common
 	binary.BigEndian.PutUint64(encNumber[:], sectionIdx)
 	db.Put(append(append(chtPrefix, encNumber[:]...), sectionHead.Bytes()...), root.Bytes())
 }
-
+//使用trie建立的blocknumber到块hash以及块难度的索引
 // ChtIndexerBackend implements core.ChainIndexerBackend.
 type ChtIndexerBackend struct {
 	diskdb, trieTable    ethdb.Database

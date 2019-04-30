@@ -43,6 +43,7 @@ type (
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
+		//内置合约地址的运行时机
 		precompiles := PrecompiledContractsHomestead
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium
@@ -79,7 +80,7 @@ type Context struct {
 	GetHash GetHashFunc
 
 	// Message information
-	Origin   common.Address // Provides information for ORIGIN
+	Origin   common.Address // Provides information for ORIGIN //Tx.Origin 合约调用的第一个发起人
 	GasPrice *big.Int       // Provides information for GASPRICE
 
 	// Block information
@@ -173,6 +174,11 @@ func (evm *EVM) Cancel() {
 func (evm *EVM) Interpreter() Interpreter {
 	return evm.interpreter
 }
+/*
+caller:合约中的msg.sender
+如果是外部合约调用,则是TX中的From,否则则是调用其他合约的合约地址
+addr: 被调用合约的地址
+*/
 
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
@@ -241,6 +247,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 	return ret, contract.Gas, err
 }
+/*
+2. CallCode主要是服务于library,假设如下调用
+账户A调用ContractA的FA,然后FA调用Library B的FB,这时候在FB中看到的msg.sender是ContractA,value是由调用FB的时候指定的.
+*/
 
 // CallCode executes the contract associated with the addr with the given input
 // as parameters. It also handles any necessary value transfer required and takes
@@ -282,7 +292,10 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	}
 	return ret, contract.Gas, err
 }
-
+/*
+3. DelegateCall 是CallCode的升级,也是服务于Library,假设调用如下:
+账户A调用ContractA的FA,然后FA调用Library B的FB,这时候在FB中看到的msg.sender是A,value是由A调用FA的时候指定的
+*/
 // DelegateCall executes the contract associated with the addr with the given input
 // as parameters. It reverses the state in case of an execution error.
 //
@@ -315,7 +328,12 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	}
 	return ret, contract.Gas, err
 }
-
+/*
+4. StaticCall 用于查询合约.保证该调用执行过程中合约状态不被修改.
+用户直接发起的查询或者在合约调用中(比如刚刚的FA),读取查询合约的状态.
+目前solidity并没有生成该指令,就算是对于只读的合约访问,也是生成call指令而不是staticcall
+在拜占庭分叉以后才会支持staticcall指令.
+*/
 // StaticCall executes the contract associated with the addr with the given input
 // as parameters while disallowing any modifications to the state during the call.
 // Opcodes that attempt to perform such modifications will result in exceptions

@@ -24,10 +24,13 @@ import (
 
 type account struct {
 	stateObject *stateObject
-	nstart      uint64
-	nonces      []bool
+	nstart      uint64 //账户链上Nonce
+	nonces      []bool //当前pool中的Tx
 }
-
+/*
+ManagedState  专门为pool设计使用,在pool中加入删除Tx会引起账户相应的变化,
+这些变化不需要写入数据库中,保存在内存中即可.
+*/
 type ManagedState struct {
 	*StateDB
 

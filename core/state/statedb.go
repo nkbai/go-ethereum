@@ -50,7 +50,10 @@ func (n *proofList) Put(key []byte, value []byte) error {
 	*n = append(*n, value)
 	return nil
 }
-
+/*
+StateDB的很多接口实际上是为了给合约执行使用
+StateDB代表着当前以太坊整条链的所有状态,
+*/
 // StateDBs within the ethereum protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
 // nested states. It's the general query interface to retrieve:
@@ -58,7 +61,10 @@ func (n *proofList) Put(key []byte, value []byte) error {
 // * Accounts
 type StateDB struct {
 	db   Database
-	trie Trie
+	trie Trie //the world state
+	//下面的objects实际上是这个block中所有Tx访问到的或者修改到的StateObject(包含普通账户和合约账户)
+	//除了Account会被真正更新到数据库中以外,其他并不会写到数据库中,
+	// 比如Receipts并不会包含在StateDB中
 
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects      map[common.Address]*stateObject
@@ -74,12 +80,12 @@ type StateDB struct {
 	// The refund counter, also used by state transitioning.
 	refund uint64
 
-	thash, bhash common.Hash
-	txIndex      int
-	logs         map[common.Hash][]*types.Log
+	thash, bhash common.Hash //当前的transaction hash 和block hash
+	txIndex      int  // 当前的交易的index
+	logs         map[common.Hash][]*types.Log  // 日志 key是交易的hash值
 	logSize      uint
 
-	preimages map[common.Hash][]byte
+	preimages map[common.Hash][]byte // EVM计算的 SHA3->byte[]的映射关系
 
 	// Journal of state modifications. This is the backbone of
 	// Snapshot and RevertToSnapshot.
@@ -87,7 +93,10 @@ type StateDB struct {
 	validRevisions []revision
 	nextRevisionId int
 }
-
+/*
+当新的一块到来的时候,
+root就是上一块的block hash,依次为根据进行状态机的状态迁移
+*/
 // Create a new state from a given trie.
 func New(root common.Hash, db Database) (*StateDB, error) {
 	tr, err := db.OpenTrie(root)
@@ -401,7 +410,8 @@ func (self *StateDB) deleteStateObject(stateObject *stateObject) {
 	addr := stateObject.Address()
 	self.setError(self.trie.TryDelete(addr[:]))
 }
-
+//因为在transaction执行的过程中,会访问整个world state
+//所以当前stateDB就是以太坊的状态.
 // Retrieve a state object given by the address. Returns nil if not found.
 func (self *StateDB) getStateObject(addr common.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.
@@ -546,6 +556,11 @@ func (self *StateDB) Snapshot() int {
 	self.validRevisions = append(self.validRevisions, revision{id, self.journal.length()})
 	return id
 }
+/*
+我的想法是主要用于以下两种用途
+1. 合约执行中出现了revert,那么这时候需要将Tx打包进块中,扣除gas,但是所有合约中执行的修改都应该回滚.
+2. 验证普通Tx,没有通过,比如矿工在收集交易的过程中碰到了签名错误,那么这时候对于就需要回滚状态,避免打包此交易.
+*/
 
 // RevertToSnapshot reverts all state changes made since the given revision.
 func (self *StateDB) RevertToSnapshot(revid int) {

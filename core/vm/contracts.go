@@ -28,7 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"golang.org/x/crypto/ripemd160"
 )
-
+//这些是平时说的内置合约,他们不以指令的形式出现,但是通过内置合约进行
+//todo 发送给合约地址,如何自动调用fallback函数呢?
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
@@ -36,7 +37,7 @@ type PrecompiledContract interface {
 	RequiredGas(input []byte) uint64  // RequiredPrice calculates the contract gas use
 	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
 }
-
+//这些是平时说的内置合约,他们不以指令的形式出现,但是通过内置合约进行
 // PrecompiledContractsHomestead contains the default set of pre-compiled Ethereum
 // contracts used in the Frontier and Homestead releases.
 var PrecompiledContractsHomestead = map[common.Address]PrecompiledContract{

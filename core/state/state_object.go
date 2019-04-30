@@ -63,7 +63,7 @@ func (self Storage) Copy() Storage {
 type stateObject struct {
 	address  common.Address
 	addrHash common.Hash // hash of ethereum address of the account
-	data     Account
+	data     Account  // 这个是实际的以太坊账号的信息
 	db       *StateDB
 
 	// DB error.
@@ -92,7 +92,7 @@ type stateObject struct {
 func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
-
+//放在Trie 状态树种的信息
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
@@ -152,6 +152,7 @@ func (c *stateObject) getTrie(db Database) Trie {
 		var err error
 		c.trie, err = db.OpenStorageTrie(c.addrHash, c.data.Root)
 		if err != nil {
+			//只是为了让后续的仍然有效,不至于空指针错误
 			c.trie, _ = db.OpenStorageTrie(c.addrHash, common.Hash{})
 			c.setError(fmt.Errorf("can't create storage trie: %v", err))
 		}

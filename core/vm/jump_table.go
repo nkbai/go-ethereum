@@ -48,6 +48,8 @@ type operation struct {
 	valid   bool // indication whether the retrieved operation is valid and known
 	reverts bool // determines whether the operation reverts state (implicitly halts)
 	returns bool // determines whether the operations sets the return data content
+	//目前可以返回数据的指令有opCreate,opCall,opDelegateCall,opStaticCall,opCallCode
+	//另外一个就是opRevert,这个应该是为了方便调试,revert("debug info")/ 知道在哪里出问题了.
 }
 
 var (

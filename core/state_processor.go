@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
+//StateTransition是用来处理一个一个的交易的。那么StateProcessor就是用来处理区块级别的交易的。
 
 // StateProcessor is a basic Processor, which takes care of transitioning
 // state from one point to another.
@@ -103,6 +104,7 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	// Update the state with pending changes
 	var root []byte
 	if config.IsByzantium(header.Number) {
+		//todo 拜占庭分叉以后receipt不需要PostState了? 不过实际中是没有用到这个信息
 		statedb.Finalise(true)
 	} else {
 		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()

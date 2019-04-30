@@ -71,9 +71,25 @@ type Header struct {
 	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
 	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
 	Coinbase    common.Address `json:"miner"            gencodec:"required"`
+	/*
+		Root 才是StateDB中的root,是整个以太坊世界的当前状态,
+		StateDB.New的root参数既是这个
+	*/
 	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	/*
+		这个只是当前block中Tx按照Trie编码得到的root hash而已,
+		todo 按照我的理解,没有也是可以的,是这样么?
+	*/
 	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	/*
+		这个是针对当前Block中Tx的执行结果的建立的一棵Trie树,不包含历史记录
+		todo: 按照我的理解,去掉也不影响
+	*/
 	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	/*
+		//交易过滤器,只通过header,检查某笔交易在不在里面?
+		针对的是当前块所有Receipts的Bloom,另外每一个Receipts里也有自己的bloom
+	*/
 	Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
 	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
 	Number      *big.Int       `json:"number"           gencodec:"required"`

@@ -115,7 +115,7 @@ type (
 		account            *common.Address
 		prevcode, prevhash []byte
 	}
-
+	//这个是执行sstore指令带来的补偿机制
 	// Changes to other state values.
 	refundChange struct {
 		prev uint64

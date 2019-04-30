@@ -84,7 +84,7 @@ const (
 	// sections. It's useful during chain upgrades to prevent disk overload.
 	bloomThrottling = 100 * time.Millisecond
 )
-
+//是blockNumber到blockHeader中的Bloom的索引
 // BloomIndexer implements a core.ChainIndexer, building up a rotated bloom bits index
 // for the Ethereum header bloom filters, permitting blazing fast filtering.
 type BloomIndexer struct {

@@ -59,6 +59,17 @@ func CacheUnloads() int64 {
 // between account and storage tries.
 type LeafCallback func(leaf []byte, parent common.Hash) error
 
+/*
+trie的结构， root包含了当前的root节点， db是后端的KV存储，trie的结构最终
+都是需要通过KV的形式存储到数据库里面去，然后启动的时候是需要从数据库里面加
+载的。 originalRoot 启动加载的时候的hash值，通过这个hash值可以在数据库
+里面恢复出整颗的trie树。cachegen字段指示了当前Trie树的cache时代，每次调
+用Commit操作的时候，会增加Trie树的cache时代。 cache时代会被附加在node
+节点上面，如果当前的cache时代 - cachelimit参数 大于node的cache时代，
+那么node会从cache里面卸载，以便节约内存。 其实这就是缓存更新的LRU算法，
+如果一个缓存在多久没有被使用，那么就从缓存里面移除，以节约内存空间。
+*/
+
 // Trie is a Merkle Patricia Trie.
 // The zero value is an empty trie with no database.
 // Use New to create a trie that sits on top of a database.
@@ -124,6 +135,8 @@ func (t *Trie) Get(key []byte) []byte {
 	}
 	return res
 }
+//err为空并不表示找到了,
+//err只有一种情况,就是MissingNodeError,表示内存中的数据和数据库中不匹配了.
 
 // TryGet returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
@@ -212,7 +225,30 @@ func (t *Trie) TryUpdate(key, value []byte) error {
 	}
 	return nil
 }
+//返回值:bool 表示是否插入成功
+//node,表示插入成功以后的节点
+/*
+Trie树的插入，这是一个递归调用的方法，从根节点开始，一直往下找，直到找到可以插入的点，进行插入操作。参数node是当前插入的节点，
+prefix是当前已经处理完的部分key， key是还没有处理玩的部分key, 完整的key = prefix + key。 value是需要插入的值。
+返回值bool是操作是否改变了Trie树(dirty)，node是插入完成后的子树的根节点， error是错误信息。
 
+如果节点类型是nil(一颗全新的Trie树的节点就是nil的),这个时候整颗树是空的，直接返回shortNode{key, value, t.newFlag()}，
+这个时候整颗树的跟就含有了一个shortNode节点。
+
+如果当前的根节点类型是shortNode(也就是叶子节点)，首先计算公共前缀，如果公共前缀就等于key，那么说明这两个key是一样的，
+如果value也一样的(dirty == false)，那么返回错误。 如果没有错误就更新shortNode的值然后返回。如果公共前缀不完全匹配，
+那么就需要把公共前缀提取出来形成一个独立的节点(扩展节点),扩展节点后面连接一个branch节点，branch节点后面看情况连接两个short节点。
+首先构建一个branch节点(branch := &fullNode{flags: t.newFlag()}),然后再branch节点的Children位置
+调用t.insert插入剩下的两个short节点。这里有个小细节，key的编码是HEX encoding,而且末尾带了一个终结符。考虑我们的
+根节点的key是abc0x16，我们插入的节点的key是ab0x16。下面的branch.Children[key[matchlen]]才可以正常运行，0x16刚好
+指向了branch节点的第17个孩子。如果匹配的长度是0，那么直接返回这个branch节点，否则返回shortNode节点作为前缀节点。
+
+如果当前的节点是fullNode(也就是branch节点)，那么直接往对应的孩子节点调用insert方法,然后把对应的孩子节点只想新生成的节点。
+
+如果当前节点是hashNode, hashNode的意思是当前节点还没有加载到内存里面来，还是存放在数据库里面，
+那么首先调用 t.resolveHash(n, prefix)来加载到内存，然后对加载出来的节点调用insert方法来进行插入。
+
+*/
 func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error) {
 	if len(key) == 0 {
 		if v, ok := n.(valueNode); ok {
@@ -230,6 +266,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 			if !dirty || err != nil {
 				return false, n, err
 			}
+			//key value和n完全匹配,相当于更新n完全更新
 			return true, &shortNode{n.Key, nn, t.newFlag()}, nil
 		}
 		// Otherwise branch out at the index where they differ.
@@ -426,7 +463,7 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 	}
 	return n, nil
 }
-
+//从db中加载一棵树
 func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 	cacheMissCounter.Inc(1)
 

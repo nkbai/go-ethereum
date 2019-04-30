@@ -112,6 +112,7 @@ func (db *cachingDB) pushTrie(t *trie.SecureTrie) {
 	defer db.mu.Unlock()
 
 	if len(db.pastTries) >= maxPastTries {
+		//这种写法有没有gc释放问题? 我看btcd上有特殊写法
 		copy(db.pastTries, db.pastTries[1:])
 		db.pastTries[len(db.pastTries)-1] = t
 	} else {
