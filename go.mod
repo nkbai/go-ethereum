@@ -34,6 +34,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.3
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
+	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/naoina/toml v0.0.0-20170918210437-9fafd6967416
 	github.com/nsf/termbox-go v0.0.0-20170211012700-3540b76b9c77
 	github.com/olekukonko/tablewriter v0.0.0-20170128050532-febf2d34b54a
@@ -49,6 +50,7 @@ require (
 	github.com/rs/xhandler v0.0.0-20160618193221-ed27b6fd6521
 	github.com/stretchr/testify v0.0.0-20170809224252-890a5c3458b4
 	github.com/syndtr/goleveldb v0.0.0-20180708030551-c4c61651e9e3
+	github.com/theckman/go-flock v0.7.1
 	github.com/uber/jaeger-client-go v0.0.0-20180607151842-f7e0d4744fa6
 	github.com/uber/jaeger-lib v0.0.0-20180615202729-a51202d6f4a7
 	golang.org/x/crypto v0.0.0-20171108091819-6a293f2d4b14

@@ -152,7 +152,11 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			in.intPool = nil
 		}()
 	}
-
+	//log.Info(fmt.Sprintf("EVMInterpreter run %s,value=%s,input=%s",contract.caller.Address().String(),contract.value,
+	//	hex.EncodeToString(input)))
+	//defer func() {
+	//	log.Info(fmt.Sprintf("ret=%s,err=%s",hex.EncodeToString(ret),err))
+	//}()
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
 	defer func() { in.evm.depth-- }()
@@ -188,6 +192,11 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		gasCopy uint64 // for Tracer to log gas remaining before execution
 		logged  bool   // deferred Tracer should ignore already logged steps
 	)
+	/*
+	如果input为空,会走到fallback函数
+	这个是由solidity编译的指令决定的
+	这个实际上是solidity的特性,而不是EVM的特性
+	 */
 	contract.Input = input
 
 	// Reclaim the stack as an int pool when the execution stops

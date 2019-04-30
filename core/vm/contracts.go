@@ -30,6 +30,9 @@ import (
 )
 //这些是平时说的内置合约,他们不以指令的形式出现,但是通过内置合约进行
 //todo 发送给合约地址,如何自动调用fallback函数呢?
+//方法就是solidity生成的代码保证input为空的时候,默认会走到fallback函数,
+//这个实际上是switch case的一个分支
+
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
